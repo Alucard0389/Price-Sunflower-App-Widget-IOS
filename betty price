@@ -1,0 +1,129 @@
+// Scriptable Widget für Betty-Gewinn
+let widget = await createWidget();
+if (!config.runsInWidget) {
+    await widget.presentMedium(); // Mittleres Widget für bessere Darstellung
+}
+Script.setWidget(widget);
+
+async function createWidget() {
+    // API-Daten abrufen
+    let url = "https://sfl.world/api/v1/prices";
+    let request = new Request(url);
+    let response;
+    try {
+        response = await request.loadJSON();
+    } catch (error) {
+        let widget = new ListWidget();
+        let errorText = widget.addText("Fehler beim Abrufen der API-Daten");
+        errorText.textColor = Color.red();
+        errorText.font = Font.regularSystemFont(12);
+        return widget;
+    }
+
+    // Widget erstellen
+    let widget = new ListWidget();
+    widget.backgroundColor = new Color("#1a1a1a");
+    
+    // Titel hinzufügen
+    let title = widget.addText("Betty Gewinn");
+    title.textColor = Color.white();
+    title.font = Font.boldSystemFont(14);
+    widget.addSpacer(5);
+
+    // Feste Betty-Preise für alle gekauften Ressourcen
+    let bettyPrices = {
+        "Banana": 0.07813,
+        "Apple": 0.07813,
+        "Orange": 0.05625,
+        "Blueberry": 0.03750,
+        "Lemon": 0.01875,
+        "Tomato": 0.00625,
+        "Grape": 0.75000,
+        "Olive": 1.25000,
+        "Duskberry": 3.12500,
+        "Rice": 1.00000,
+        "Celestine": 0.62500,
+        "Lunara": 1.56250,
+        "Sunflower": 0.00006,
+        "Potato": 0.00044,
+        "Rhubarb": 0.00075,
+        "Pumpkin": 0.00125,
+        "Zucchini": 0.00125,
+        "Carrot": 0.00250,
+        "Yam": 0.00250,
+        "Cabbage": 0.00469,
+        "Broccoli": 0.00469,
+        "Soybean": 0.00719,
+        "Beetroot": 0.00875,
+        "Pepper": 0.00937,
+        "Cauliflower": 0.01328,
+        "Parsnip": 0.02031,
+        "Eggplant": 0.02500,
+        "Corn": 0.02813,
+        "Onion": 0.03125,
+        "Radish": 0.02969,
+        "Wheat": 0.02187,
+        "Turnip": 0.02500,
+        "Kale": 0.03125,
+        "Artichoke": 0.03750,
+        "Barley": 0.03750 // Angenommen basierend auf vorheriger Tabelle
+    };
+
+    let data = response.data?.p2p;
+
+    if (!data || typeof data !== "object") {
+        let errorText = widget.addText("Keine P2P-Daten gefunden");
+        errorText.textColor = Color.red();
+        errorText.font = Font.regularSystemFont(10);
+        return widget;
+    }
+
+    // Gewinne berechnen
+    let profits = {};
+    for (let resource in bettyPrices) {
+        let p2pPrice = data[resource];
+        if (p2pPrice !== undefined) {
+            let profit = ((bettyPrices[resource] - p2pPrice) / p2pPrice * 100).toFixed(2);
+            profits[resource] = parseFloat(profit);
+        }
+    }
+
+    // Top-5 Ressourcen nach Gewinn sortieren
+    let sortedProfits = Object.entries(profits).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+    // Preise in Liste anzeigen
+    let stack = widget.addStack();
+    stack.layoutVertically();
+
+    for (let [resource, profit] of sortedProfits) {
+        let row = stack.addStack();
+        row.spacing = 5;
+        row.centerAlignContent();
+        
+        let nameText = row.addText(resource.padEnd(10));
+        nameText.textColor = Color.white();
+        nameText.font = Font.regularSystemFont(12);
+        
+        let p2pText = row.addText(`${data[resource].toFixed(4)} $Flower`);
+        p2pText.textColor = Color.yellow();
+        p2pText.font = Font.regularSystemFont(12);
+        
+        let bettyText = row.addText(`${bettyPrices[resource].toFixed(4)} $Flower`);
+        bettyText.textColor = Color.green();
+        bettyText.font = Font.regularSystemFont(12);
+        
+        let profitText = row.addText(`${profit >= 0 ? "+" : ""}${profit}%`);
+        profitText.textColor = profit >= 0 ? Color.green() : Color.red();
+        profitText.font = Font.regularSystemFont(10);
+        
+        stack.addSpacer(3);
+    }
+
+    // Aktualisierungszeit
+    widget.setPadding(5, 5, 5, 5);
+    let updateText = widget.addText(`Updated: ${response.updated_text || new Date().toLocaleTimeString()}`);
+    updateText.textColor = Color.gray();
+    updateText.font = Font.lightSystemFont(10);
+    
+    return widget;
+}
